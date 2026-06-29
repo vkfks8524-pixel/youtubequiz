@@ -535,6 +535,7 @@
     let maxTime = 0;
     let currentQuizIndex = null;
     let selectedChoiceIdx = null;
+    let retryCount = 0;
 
     // 2. 가상 API 정의 (서버 google.script.run 대용)
     const mockApi = {
@@ -638,6 +639,13 @@
     function monitorTimeDemo() {
       if (!ytPlayer || !ytPlayer.getCurrentTime) return;
       const now = ytPlayer.getCurrentTime();
+      
+      // 영상 재생 10초 시점에서 자동 일시정지 (데모 시연 완결용)
+      if (now >= 10) {
+        ytPlayer.pauseVideo();
+        return;
+      }
+      
       const activeQuizzes = demoDB.quizzes.filter(q => q.lessonId === activeLessonId);
 
       const hasUnsolved = activeQuizzes.some(q => !q.solved);
@@ -666,6 +674,7 @@
     function triggerQuizDemo(q, index) {
       currentQuizIndex = index;
       selectedChoiceIdx = null;
+      retryCount = 0;
       
       const overlay = document.getElementById('quiz-overlay-demo');
       const qUi = document.getElementById('q-ui-demo');
@@ -724,6 +733,13 @@
         isCorrect = (q.type === 'OPEN' || q.answer === "" || val.toLowerCase().replace(/\s+/g, '') === q.answer.toLowerCase().replace(/\s+/g, ''));
       }
 
+      // 오답이고 아직 재도전 기회(1회)가 남았을 때
+      if (q.type !== 'OPEN' && !isCorrect && retryCount < 1) {
+        retryCount++;
+        qMs.innerHTML = '<i class="bi bi-x-circle-fill"></i> 오답입니다. 한 번 더 기회를 드릴게요!';
+        return;
+      }
+
       // 가상 서버에 저장
       mockApi.saveResponse('10101', '김코딩', activeLessonId, q.question, studentRes).then(() => {
         // 성공 토스트 띄우기
@@ -744,9 +760,9 @@
           title.innerText = "정답입니다!";
           msg.innerText = "잠시 후 학습 동영상이 계속 재생됩니다.";
         } else {
-          icon.className = "bi bi-x-circle-fill text-danger";
-          title.innerText = "오답입니다!";
-          msg.innerText = `정답은 [${q.answer}] 입니다. 학습을 계속합니다.`;
+          icon.className = "bi bi-info-circle-fill text-primary";
+          title.innerText = "제출 완료!";
+          msg.innerText = "오답으로 최종 기록되어 학습을 계속합니다.";
         }
 
         toast.style.display = 'flex';
