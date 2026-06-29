@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class ToolHub - 유튜브 퀴즈 인터랙티브 체험관</title>
+  
+  <!-- CSS 불러오기 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  
+  <!-- 외부 JS 라이브러리 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --primary-color: #6366f1;
+      --danger-color: #ef4444;
+      --text-main: #1f2937;
+      --text-sub: #6b7280;
+      --radius: 20px;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    }
+
+    body {
+      font-family: "Pretendard", sans-serif;
+      background-color: #f1f5f9;
+      color: var(--text-main);
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 상단 가이드 바 */
+    .tutorial-header {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: white;
+      padding: 12px 24px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      flex-shrink: 0;
+    }
+
+    .tutorial-title {
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -0.5px;
+    }
+
+    .steps-container {
+      display: flex;
+      gap: 15px;
+      margin-left: 30px;
+    }
+
+    .step-badge {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 30px;
+      padding: 4px 14px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #e0e7ff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.3s;
+    }
+    
+    .step-badge.active {
+      background: #ffffff;
+      color: #4f46e5;
+      border-color: #ffffff;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    /* 50:50 분할 컨테이너 */
+    .split-workspace {
+      flex-grow: 1;
+      display: flex;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .app-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .student-panel {
+      border-right: 4px solid #cbd5e1;
+      background-color: #fafbfd;
+    }
+
+    .teacher-panel {
+      background-color: #f8fafc;
+    }
+
+    .panel-header-bar {
+      padding: 12px 20px;
+      font-weight: 800;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e2e8f0;
+      background: #fff;
+    }
+
+    .app-viewport {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 20px;
+      position: relative;
+    }
+
+    /* Mock 시뮬레이터 카드 CSS */
+    .custom-card {
+      background: var(--card-bg);
+      border: 1px solid #eef0f2;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 25px;
+      margin-bottom: 20px;
+    }
+
+    .settings-input {
+      width: 100%;
+      padding: 12px 18px;
+      border: 1px solid #eef0f2;
+      border-radius: 14px;
+      outline: none;
+      background: #fcfdfe;
+      transition: 0.3s;
+      margin-bottom: 15px;
+    }
+    .settings-input:focus {
+      border-color: var(--primary-color);
+      background: white;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.08);
+    }
+
+    .settings-label {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+      display: block;
+      padding-left: 2px;
+    }
+
+    .btn-primary-custom {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 12px 24px;
+      font-weight: 800;
+      transition: 0.3s;
+    }
+    .btn-primary-custom:hover {
+      opacity: 0.9;
+    }
+
+    /* 교사용 대시보드 O/X 테이블 커스텀 */
+    .table-responsive {
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    /* 모의 지연 로더 */
+    .mock-loader {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      border-radius: inherit;
+    }
+
+    /* 학생 플레이어 뷰 전용 */
+    .player-frame-demo {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      background: #000;
+      box-shadow: var(--shadow);
+      margin-bottom: 15px;
+      container-type: size;
+    }
+
+    #quiz-overlay-demo {
+      position: absolute;
+      inset: 0;
+      background: rgba(30, 41, 59, 0.95);
+      backdrop-filter: blur(8px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      padding: 20px;
+      color: white;
+      text-align: center;
+    }
+
+    .choice-btn-demo {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: white;
+      border-radius: 12px;
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      text-align: left;
+      transition: 0.2s;
+      width: 100%;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .choice-btn-demo:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    .choice-btn-demo.selected {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+      font-weight: 700;
+    }
+
+    #success-toast-demo {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.95);
+      z-index: 20;
+      border-radius: 20px;
+      text-align: center;
+    }
+
+    .video-btn-demo {
+      background: white;
+      border: 1px solid #e2e8f0;
+      padding: 10px 16px;
+      border-radius: 14px;
+      font-weight: 700;
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .video-btn-demo.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+
+    .type-btn {
+      border-radius: 10px;
+      border: 1px solid #eee;
+      background: #f8fafc;
+      padding: 10px;
+      font-weight: 600;
+      flex: 1;
+      transition: 0.2s;
+      color: var(--text-sub);
+    }
+    .type-btn.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+
+    .q-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 15px;
+      background: white;
+      margin-bottom: 10px;
+      border-left: 4px solid var(--primary-color);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 상단 가이드 바 -->
+  <header class="tutorial-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center">
+      <span class="tutorial-title"><i class="bi bi-rocket-takeoff-fill me-2"></i>유튜브 퀴즈 체험관 (Local Sandbox)</span>
+      <div class="steps-container d-none d-md-flex">
+        <span class="step-badge active" id="badge-step1"><i class="bi bi-1-circle-fill"></i> 1단계: 교사용 영상/퀴즈 출제</span>
+        <span class="step-badge" id="badge-step2"><i class="bi bi-2-circle-fill"></i> 2단계: 학생용 퀴즈 풀이</span>
+        <span class="step-badge" id="badge-step3"><i class="bi bi-3-circle-fill"></i> 3단계: 실시간 채점 분석</span>
+      </div>
+    </div>
+    <span class="badge bg-white text-dark rounded-pill fw-bold py-2 px-3"><i class="bi bi-info-circle-fill text-primary me-1"></i> 시뮬레이터 구동 중</span>
+  </header>
+
+  <!-- 50:50 작업 공간 -->
+  <main class="split-workspace">
+
+    <!-- 1. 좌측 학생용 시뮬레이션 영역 -->
+    <section class="app-screen student-panel">
+      <div class="panel-header-bar text-danger border-top border-danger border-3">
+        <span><i class="bi bi-play-circle-fill me-2"></i>학생용 플레이어 화면</span>
+        <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3 py-1"><i class="bi bi-person-fill me-1"></i> 김코딩 (10101) 로그인됨</span>
+      </div>
+      
+      <div class="app-viewport" id="student-viewport">
+        <!-- 모의 로더 -->
+        <div class="mock-loader" id="student-loader">
+          <div class="spinner-border text-danger mb-2" role="status"></div>
+          <span class="fw-bold text-secondary">학생 뷰 처리 중...</span>
+        </div>
+
+        <div class="custom-card">
+          <h6 class="fw-bold mb-3 small text-muted"><i class="bi bi-collection-play-fill me-2 text-danger"></i>학습할 영상 선택</h6>
+          <div id="v-list-student" class="d-flex gap-2 flex-wrap mb-4">
+            <!-- 동적으로 생성 -->
+          </div>
+
+          <div id="student-player-area" style="display:block">
+            <div class="player-frame-demo mb-3">
+              <div id="player-frame-inner" style="width: 100%; height: 100%;">
+                <div id="yt-player-placeholder" class="d-flex flex-column align-items-center justify-content-center h-100 text-white bg-dark">
+                  <i class="bi bi-youtube text-danger" style="font-size: 4rem;"></i>
+                  <p class="mt-2 fw-bold">상단에서 영상을 선택하시면 플레이어가 로드됩니다.</p>
+                </div>
+              </div>
+
+              <!-- 퀴즈 팝업 레이어 -->
+              <div id="quiz-overlay-demo">
+                <h5 class="fw-bold mb-3" id="q-tx-demo"></h5>
+                <div id="q-ui-demo" class="w-100 d-flex flex-column align-items-center" style="max-width: 500px;"></div>
+                <button class="btn btn-danger rounded-pill px-4 py-2 mt-3 fw-bold shadow" onclick="submitStudentQuiz()"><i class="bi bi-send-fill me-2"></i>정답 제출하기</button>
+                <p id="q-ms-demo" class="mt-2 text-warning small fw-bold"></p>
+              </div>
+
+              <!-- 성공 토스트 -->
+              <div id="success-toast-demo">
+                <div>
+                  <i id="toast-icon-demo" class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                  <h4 id="toast-title-demo" class="fw-bold mt-2 text-dark">정답입니다!</h4>
+                  <p id="toast-msg-demo" class="text-muted small">잠시 후 영상이 계속됩니다.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-center gap-2">
+              <button id="btn-play-demo" class="btn btn-light rounded-pill px-4 border shadow-sm fw-bold text-secondary" onclick="playVideoDemo()">
+                <i class="bi bi-play-fill me-1"></i>재생
+              </button>
+              <button id="btn-pause-demo" class="btn btn-light rounded-pill px-4 border shadow-sm fw-bold text-secondary" onclick="pauseVideoDemo()">
+                <i class="bi bi-pause-fill me-1"></i>일시정지
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 우측 교사용 시뮬레이션 영역 -->
+    <section class="app-screen teacher-panel">
+      <div class="panel-header-bar text-primary border-top border-primary border-3">
+        <span><i class="bi bi-shield-lock-fill me-2"></i>교사용 관리자 대시보드</span>
+        <button class="btn btn-sm btn-outline-primary rounded-pill fw-bold" onclick="resetDemoDB()"><i class="bi bi-arrow-counterclockwise"></i> 데모 초기화</button>
+      </div>
+
+      <div class="app-viewport" id="teacher-viewport">
+        <!-- 모의 로더 -->
+        <div class="mock-loader" id="teacher-loader">
+          <div class="spinner-border text-primary mb-2" role="status"></div>
+          <span class="fw-bold text-secondary">대시보드 통계 계산 중...</span>
+        </div>
+
+        <!-- 탭 전환 헤더 -->
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-sm btn-dark rounded-pill px-3" id="t-tab-editor" onclick="switchTeacherTab('editor')"><i class="bi bi-pencil-square me-1"></i> 퀴즈 출제/수업 관리</button>
+          <button class="btn btn-sm btn-outline-dark rounded-pill px-3" id="t-tab-dash" onclick="switchTeacherTab('dash')"><i class="bi bi-bar-chart-fill me-1"></i> 실시간 통계 대시보드</button>
+        </div>
+
+        <!-- A. 출제 탭 -->
+        <div id="t-content-editor">
+          <div class="custom-card">
+            <h6 class="fw-bold mb-3"><i class="bi bi-camera-reels-fill me-2 text-primary"></i>1. 영상 등록</h6>
+            <div class="row g-2 mb-3">
+              <div class="col-8">
+                <input type="text" id="vT-demo" class="settings-input mb-0" placeholder="수업 영상 제목 입력 (예: 수학 1차시)">
+              </div>
+              <div class="col-4">
+                <button class="btn-primary-custom w-100 py-2" onclick="addVideoDemo()">영상 등록</button>
+              </div>
+            </div>
+            <div id="teacher-v-list" class="list-group">
+              <!-- 영상 목록 동적 노출 -->
+            </div>
+          </div>
+
+          <div class="custom-card" id="quiz-setting-card" style="display:none;">
+            <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-pencil-square me-2"></i>2. 퀴즈 출제 <small class="text-muted" id="active-video-title"></small></h6>
+            
+            <label class="settings-label">중단 시점 (초)</label>
+            <input type="number" id="qTi-demo" class="settings-input" placeholder="초 단위 숫자 (예: 15)">
+
+            <label class="settings-label">질문 유형</label>
+            <div class="d-flex gap-2 mb-3">
+              <button class="type-btn active" id="type-OPEN" onclick="setQuizTypeDemo('OPEN')">개방형</button>
+              <button class="type-btn" id="type-NARRATIVE" onclick="setQuizTypeDemo('NARRATIVE')">서술형</button>
+              <button class="type-btn" id="type-CHOICE" onclick="setQuizTypeDemo('CHOICE')">객관식</button>
+            </div>
+
+            <label class="settings-label">질문 텍스트</label>
+            <input type="text" id="qTx-demo" class="settings-input" placeholder="질문을 입력하세요">
+
+            <div id="ans-field-demo" style="display:none;">
+              <label class="settings-label">서술형 정답 키워드</label>
+              <input type="text" id="qAn-demo" class="settings-input" placeholder="정답 텍스트">
+            </div>
+
+            <div id="opt-field-demo" style="display:none;">
+              <label class="settings-label">객관식 보기 입력 및 정답 체크</label>
+              <div id="opt-list-demo">
+                <div class="d-flex gap-2 mb-2 align-items-center">
+                  <input type="radio" name="opt-correct-demo" value="0" checked>
+                  <input type="text" class="settings-input mb-0 opt-val-demo" placeholder="보기 1">
+                </div>
+                <div class="d-flex gap-2 mb-2 align-items-center">
+                  <input type="radio" name="opt-correct-demo" value="1">
+                  <input type="text" class="settings-input mb-0 opt-val-demo" placeholder="보기 2">
+                </div>
+              </div>
+              <button class="btn btn-link btn-sm p-0 text-decoration-none fw-bold" onclick="addOptionDemo()"><i class="bi bi-plus-lg"></i> 보기 추가</button>
+            </div>
+
+            <button class="btn-primary-custom w-100 mt-3" onclick="saveQuizDemo()">퀴즈 저장하기</button>
+
+            <!-- 퀴즈 목록 -->
+            <div id="teacher-quiz-list" class="mt-4"></div>
+          </div>
+        </div>
+
+        <!-- B. 대시보드 탭 -->
+        <div id="t-content-dash" style="display:none;">
+          <div class="custom-card">
+            <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill me-2 text-success"></i>실시간 통계 종합</h6>
+            <div class="row text-center g-2 mb-4">
+              <div class="col-4">
+                <div class="p-3 bg-light rounded-4">
+                  <div class="small text-muted fw-bold">등록 학생</div>
+                  <div class="fs-3 fw-black text-primary" id="dash-total-students">3</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-3 bg-light rounded-4">
+                  <div class="small text-muted fw-bold">응답률</div>
+                  <div class="fs-3 fw-black text-success" id="dash-response-rate">0%</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-3 bg-light rounded-4">
+                  <div class="small text-muted fw-bold">객관식 정답률</div>
+                  <div class="fs-3 fw-black text-danger" id="dash-correct-rate">0%</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- O/X 채점표 -->
+            <h6 class="fw-bold mb-2"><i class="bi bi-grid-3x3-gap-fill me-2 text-secondary"></i>실시간 O/X 채점 현황</h6>
+            <div class="table-responsive border rounded-4 mb-4">
+              <table class="table table-hover mb-0 text-center" id="dash-score-table">
+                <!-- 동적으로 생성 -->
+              </table>
+            </div>
+
+            <!-- 응답 리스트 피드 -->
+            <h6 class="fw-bold mb-2"><i class="bi bi-chat-right-text-fill me-2 text-secondary"></i>최근 제출된 학생 응답 실시간 피드</h6>
+            <div id="dash-response-feed" style="max-height: 200px; overflow-y:auto;" class="list-group">
+              <p class="text-muted text-center py-3">제출된 응답이 없습니다. 왼쪽 학생 화면에서 퀴즈를 풀어보세요!</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // 1. 시뮬레이션용 인메모리 가상 데이터베이스
+    let demoDB = {
+      videos: [
+        { lessonId: 'lesson-1', videoId: 'M7lc1UVf-VE', title: '체험 수업: 대한민국과 미국의 수도' }
+      ],
+      quizzes: [
+        { lessonId: 'lesson-1', time: 2, question: '대한민국의 수도는?', answer: '0', type: 'CHOICE', options: '서울||도쿄||베이징||런던', solved: false },
+        { lessonId: 'lesson-1', time: 7, question: '미국의 수도는?', answer: '워싱턴', type: 'NARRATIVE', options: '', solved: false }
+      ],
+      students: [
+        { id: '10101', name: '김코딩', grade: '1', class: '01' },
+        { id: '10102', name: '이학생', grade: '1', class: '01' },
+        { id: '10103', name: '박배움', grade: '1', class: '01' }
+      ],
+      responses: [
+        ['10101', '김코딩', 'lesson-1', '대한민국의 수도는?', '1.서울', new Date(Date.now() - 3600000)],
+        ['10101', '김코딩', 'lesson-1', '미국의 수도는?', '워싱턴', new Date(Date.now() - 3500000)],
+        ['10102', '이학생', 'lesson-1', '대한민국의 수도는?', '2.도쿄', new Date(Date.now() - 2400000)],
+        ['10102', '이학생', 'lesson-1', '미국의 수도는?', '워싱턴', new Date(Date.now() - 2300000)],
+        ['10103', '박배움', 'lesson-1', '대한민국의 수도는?', '1.서울', new Date(Date.now() - 1200000)],
+        ['10103', '박배움', 'lesson-1', '미국의 수도는?', '뉴욕', new Date(Date.now() - 1100000)]
+      ]
+    };
+
+    let activeLessonId = 'lesson-1';
+    let currentQuizType = 'OPEN';
+    let ytPlayer = null;
+    let playedTimer = null;
+    let lastTime = 0;
+    let maxTime = 0;
+    let currentQuizIndex = null;
+    let selectedChoiceIdx = null;
+
+    // 2. 가상 API 정의 (서버 google.script.run 대용)
+    const mockApi = {
+      getVideoList() { return Promise.resolve(demoDB.videos); },
+      getQuizzesForVideo(lId) { return Promise.resolve(demoDB.quizzes.filter(q => q.lessonId === lId)); },
+      addVideo(t, u) {
+        const id = 'lesson-' + (demoDB.videos.length + 1);
+        const vId = 'XKt-Hs2bx_w'; 
+        demoDB.videos.push({ lessonId: id, videoId: vId, title: t });
+        return Promise.resolve({ lessonId: id, videoId: vId, title: t });
+      },
+      addQuiz(lId, ts, q, a, type, opts) {
+        demoDB.quizzes.push({ lessonId: lId, time: Number(ts), question: q, answer: a, type: type, options: opts });
+        return Promise.resolve("OK");
+      },
+      saveResponse(sId, sNa, lId, q, res) {
+        demoDB.responses.push([sId, sNa, lId, q, res, new Date()]);
+        return Promise.resolve("OK");
+      }
+    };
+
+    window.onload = () => {
+      initStudentApp();
+      initTeacherApp();
+      switchStep(1); // 1단계 안내 활성화
+    };
+
+    function switchStep(step) {
+      document.querySelectorAll('.step-badge').forEach(b => b.classList.remove('active'));
+      const activeBadge = document.getElementById('badge-step' + step);
+      if(activeBadge) activeBadge.classList.add('active');
+    }
+
+    // 3. 학생용 화면 로직
+    function initStudentApp() {
+      // 1. 영상 목록 동기화
+      const listDiv = document.getElementById('v-list-student');
+      listDiv.innerHTML = '';
+      
+      demoDB.videos.forEach(v => {
+        const btn = document.createElement('button');
+        btn.className = `video-btn-demo ${v.lessonId === activeLessonId ? 'active' : ''}`;
+        btn.innerHTML = `<i class="bi bi-play-btn-fill"></i> ${v.title}`;
+        btn.onclick = () => {
+          document.querySelectorAll('.video-btn-demo').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          loadStudentVideo(v.lessonId, v.videoId);
+        };
+        listDiv.appendChild(btn);
+      });
+
+      if (demoDB.videos.length > 0 && activeLessonId) {
+        loadStudentVideo(activeLessonId, demoDB.videos[0].videoId);
+      }
+    }
+
+    function loadStudentVideo(lId, vId) {
+      activeLessonId = lId;
+      lastTime = 0;
+      maxTime = 0;
+      if (playedTimer) clearInterval(playedTimer);
+      playedTimer = null;
+      
+      // 퀴즈 락 초기화
+      demoDB.quizzes.forEach(q => { if(q.lessonId === lId) q.solved = false; });
+
+      // 임베드 플레이어 렌더링
+      const frameInner = document.getElementById('player-frame-inner');
+      frameInner.innerHTML = `<div id="yt-player-iframe" style="width:100%; height:100%;"></div>`;
+
+      // 기존 YouTube Player 객체 소멸 및 신규 생성
+      ytPlayer = new YT.Player('yt-player-iframe', {
+        videoId: vId,
+        width: '100%',
+        height: '100%',
+        playerVars: { 'controls': 0, 'disablekb': 1, 'modestbranding': 1, 'rel': 0, 'playsinline': 1, 'origin': location.origin },
+        events: {
+          'onStateChange': onPlayerStateChangeDemo,
+          'onPlaybackRateChange': onPlayerPlaybackRateChangeDemo
+        }
+      });
+    }
+
+    function onPlayerStateChangeDemo(e) {
+      if (e.data == YT.PlayerState.PLAYING) {
+        if (!playedTimer) playedTimer = setInterval(monitorTimeDemo, 250);
+        switchStep(2); // 2단계 학생 플레이 단계로 가이드 변경
+      } else {
+        if (playedTimer) { clearInterval(playedTimer); playedTimer = null; }
+      }
+    }
+
+    // 2배속 재생 꼼수 방지 리스너
+    function onPlayerPlaybackRateChangeDemo(e) {
+      if (e.data !== 1) {
+        ytPlayer.setPlaybackRate(1); 
+        alert("이 수업용 웹앱에서는 재생 속도를 변경할 수 없습니다! (1배속 강제 고정)");
+      }
+    }
+
+    function monitorTimeDemo() {
+      if (!ytPlayer || !ytPlayer.getCurrentTime) return;
+      const now = ytPlayer.getCurrentTime();
+      const activeQuizzes = demoDB.quizzes.filter(q => q.lessonId === activeLessonId);
+
+      const hasUnsolved = activeQuizzes.some(q => !q.solved);
+      if (hasUnsolved) {
+        // 건너뛰기 방지
+        if (now - lastTime > 2.2 && now > maxTime) {
+          ytPlayer.seekTo(maxTime);
+          return;
+        }
+      }
+
+      if (now > maxTime && now - lastTime <= 2.2) {
+        maxTime = now;
+      }
+      lastTime = now;
+
+      const currentSec = Math.floor(now);
+      activeQuizzes.forEach((q, i) => {
+        if (currentSec === q.time && !q.solved) {
+          ytPlayer.pauseVideo();
+          triggerQuizDemo(q, i);
+        }
+      });
+    }
+
+    function triggerQuizDemo(q, index) {
+      currentQuizIndex = index;
+      selectedChoiceIdx = null;
+      
+      const overlay = document.getElementById('quiz-overlay-demo');
+      const qUi = document.getElementById('q-ui-demo');
+      const qMs = document.getElementById('q-ms-demo');
+      
+      qUi.innerHTML = '';
+      qMs.innerText = '';
+      
+      document.getElementById('q-tx-demo').innerText = q.question;
+      
+      if (q.type === 'CHOICE') {
+        const opts = q.options.split('||');
+        opts.forEach((opt, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'choice-btn-demo';
+          btn.innerHTML = `<span class="badge bg-light text-dark me-2 border">${idx+1}</span> ${opt}`;
+          btn.onclick = () => {
+            document.querySelectorAll('.choice-btn-demo').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedChoiceIdx = idx;
+          };
+          qUi.appendChild(btn);
+        });
+      } else {
+        const input = document.createElement('input');
+        input.className = 'settings-input text-center fw-bold';
+        input.id = 'ans-input-demo';
+        input.placeholder = '답안을 작성하세요';
+        qUi.appendChild(input);
+      }
+      
+      overlay.style.display = 'flex';
+    }
+
+    function submitStudentQuiz() {
+      const q = demoDB.quizzes.filter(qz => qz.lessonId === activeLessonId)[currentQuizIndex];
+      const qMs = document.getElementById('q-ms-demo');
+      let studentRes = "";
+      let isCorrect = false;
+
+      if (q.type === 'CHOICE') {
+        if (selectedChoiceIdx === null) {
+          qMs.innerText = "답안을 선택해주세요!";
+          return;
+        }
+        const opts = q.options.split('||');
+        studentRes = (selectedChoiceIdx + 1) + "." + opts[selectedChoiceIdx];
+        isCorrect = (q.answer === "" || selectedChoiceIdx.toString() === q.answer);
+      } else {
+        const val = document.getElementById('ans-input-demo').value.trim();
+        if (!val) {
+          qMs.innerText = "답안을 입력해주세요!";
+          return;
+        }
+        studentRes = val;
+        isCorrect = (q.type === 'OPEN' || q.answer === "" || val.toLowerCase().replace(/\s+/g, '') === q.answer.toLowerCase().replace(/\s+/g, ''));
+      }
+
+      // 가상 서버에 저장
+      mockApi.saveResponse('10101', '김코딩', activeLessonId, q.question, studentRes).then(() => {
+        // 성공 토스트 띄우기
+        const overlay = document.getElementById('quiz-overlay-demo');
+        overlay.style.display = 'none';
+
+        const toast = document.getElementById('success-toast-demo');
+        const icon = document.getElementById('toast-icon-demo');
+        const title = document.getElementById('toast-title-demo');
+        const msg = document.getElementById('toast-msg-demo');
+
+        if (q.type === 'OPEN') {
+          icon.className = "bi bi-info-circle-fill text-primary";
+          title.innerText = "제출 완료!";
+          msg.innerText = "응답이 교사용 대시보드로 전달되었습니다.";
+        } else if (isCorrect) {
+          icon.className = "bi bi-check-circle-fill text-success";
+          title.innerText = "정답입니다!";
+          msg.innerText = "잠시 후 학습 동영상이 계속 재생됩니다.";
+        } else {
+          icon.className = "bi bi-x-circle-fill text-danger";
+          title.innerText = "오답입니다!";
+          msg.innerText = `정답은 [${q.answer}] 입니다. 학습을 계속합니다.`;
+        }
+
+        toast.style.display = 'flex';
+        
+        // 교사 화면 갱신
+        updateTeacherDashboard();
+        switchStep(3); // 3단계 실시간 채점 분석 안내로 변경
+
+        setTimeout(() => {
+          toast.style.display = 'none';
+          q.solved = true;
+          ytPlayer.playVideo();
+        }, 3000);
+      });
+    }
+
+    function playVideoDemo() {
+      if(ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo();
+    }
+    
+    function pauseVideoDemo() {
+      if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+    }
+
+    // 4. 교사용 화면 로직
+    function initTeacherApp() {
+      // 1. 영상 목록 동기화
+      const vList = document.getElementById('teacher-v-list');
+      vList.innerHTML = '';
+      
+      demoDB.videos.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+        item.style.cursor = 'pointer';
+        item.innerHTML = `<div><strong class="text-dark">${v.title}</strong><div class="small text-muted">ID: ${v.videoId}</div></div>`;
+        item.onclick = () => {
+          selectTeacherVideo(v.lessonId, v.title);
+        };
+        vList.appendChild(item);
+      });
+
+      if(demoDB.videos.length > 0) {
+        selectTeacherVideo(demoDB.videos[0].lessonId, demoDB.videos[0].title);
+      }
+    }
+
+    function selectTeacherVideo(lId, title) {
+      activeLessonId = lId;
+      document.getElementById('quiz-setting-card').style.display = 'block';
+      document.getElementById('active-video-title').innerText = `[현재 선택: ${title}]`;
+      
+      // 퀴즈 목록 렌더링
+      renderTeacherQuizList();
+    }
+
+    function addVideoDemo() {
+      const title = document.getElementById('vT-demo').value.trim();
+      if(!title) return alert("수업 제목을 입력해주세요.");
+      
+      showLoader('teacher');
+      mockApi.addVideo(title, '').then(v => {
+        hideLoader('teacher');
+        document.getElementById('vT-demo').value = '';
+        initTeacherApp();
+        initStudentApp(); // 학생 뷰 목록도 동시 동기화
+        selectTeacherVideo(v.lessonId, v.title);
+      });
+    }
+
+    function setQuizTypeDemo(type) {
+      currentQuizType = type;
+      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('type-' + type).classList.add('active');
+
+      document.getElementById('ans-field-demo').style.display = (type === 'NARRATIVE') ? 'block' : 'none';
+      document.getElementById('opt-field-demo').style.display = (type === 'CHOICE') ? 'block' : 'none';
+    }
+
+    function addOptionDemo() {
+      const list = document.getElementById('opt-list-demo');
+      const idx = list.children.length;
+      const row = document.createElement('div');
+      row.className = 'd-flex gap-2 mb-2 align-items-center';
+      row.innerHTML = `
+        <input type="radio" name="opt-correct-demo" value="${idx}">
+        <input type="text" class="settings-input mb-0 opt-val-demo" placeholder="보기 ${idx+1}">
+      `;
+      list.appendChild(row);
+    }
+
+    function saveQuizDemo() {
+      const time = document.getElementById('qTi-demo').value.trim();
+      const quest = document.getElementById('qTx-demo').value.trim();
+      
+      if(!time || !quest) return alert("시간과 질문을 입력해 주세요.");
+      
+      let answer = "";
+      let options = "";
+
+      if(currentQuizType === 'CHOICE') {
+        const correctRadio = document.querySelector('input[name="opt-correct-demo"]:checked');
+        if(!correctRadio) return alert("정답으로 설정할 보기를 체크해 주세요.");
+        answer = correctRadio.value;
+        options = Array.from(document.querySelectorAll('.opt-val-demo')).map(i => i.value.trim()).join('||');
+      } else if (currentQuizType === 'NARRATIVE') {
+        answer = document.getElementById('qAn-demo').value.trim();
+      }
+
+      showLoader('teacher');
+      mockApi.addQuiz(activeLessonId, time, quest, answer, currentQuizType, options).then(() => {
+        hideLoader('teacher');
+        // 초기화
+        document.getElementById('qTi-demo').value = '';
+        document.getElementById('qTx-demo').value = '';
+        document.getElementById('qAn-demo').value = '';
+        document.getElementById('opt-list-demo').innerHTML = `
+          <div class="d-flex gap-2 mb-2 align-items-center">
+            <input type="radio" name="opt-correct-demo" value="0" checked>
+            <input type="text" class="settings-input mb-0 opt-val-demo" placeholder="보기 1">
+          </div>
+          <div class="d-flex gap-2 mb-2 align-items-center">
+            <input type="radio" name="opt-correct-demo" value="1">
+            <input type="text" class="settings-input mb-0 opt-val-demo" placeholder="보기 2">
+          </div>
+        `;
+        
+        renderTeacherQuizList();
+        // 학생 플레이어의 목록 재장전
+        loadStudentVideo(activeLessonId, demoDB.videos.find(v=>v.lessonId === activeLessonId).videoId);
+      });
+    }
+
+    function renderTeacherQuizList() {
+      const qListDiv = document.getElementById('teacher-quiz-list');
+      qListDiv.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2 mt-4">
+          <strong class="text-dark small"><i class="bi bi-list-ol"></i> 출제된 퀴즈 구성 목록</strong>
+        </div>
+      `;
+
+      const list = demoDB.quizzes.filter(q => q.lessonId === activeLessonId);
+      if(list.length === 0) {
+        qListDiv.innerHTML += `<p class="text-muted text-center py-2 small">등록된 퀴즈가 없습니다.</p>`;
+        return;
+      }
+
+      list.forEach((q, i) => {
+        qListDiv.innerHTML += `
+          <div class="p-3 mb-2 bg-light rounded-4 border-start border-primary border-4 d-flex justify-content-between align-items-center">
+            <div>
+              <span class="text-primary fw-bold me-2">${q.time}초</span>
+              <strong class="text-dark small">${q.question}</strong>
+              <span class="badge bg-secondary ms-2" style="font-size: 0.7rem;">${q.type === 'CHOICE' ? '객관식' : (q.type==='OPEN' ? '개방형':'서술형')}</span>
+            </div>
+            <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteQuizDemo(${i})"><i class="bi bi-trash"></i></button>
+          </div>
+        `;
+      });
+    }
+
+    function deleteQuizDemo(index) {
+      demoDB.quizzes.splice(index, 1);
+      renderTeacherQuizList();
+      loadStudentVideo(activeLessonId, demoDB.videos.find(v=>v.lessonId === activeLessonId).videoId);
+    }
+
+    function switchTeacherTab(tab) {
+      document.getElementById('t-tab-editor').className = `btn btn-sm ${tab === 'editor' ? 'btn-dark' : 'btn-outline-dark'} rounded-pill px-3`;
+      document.getElementById('t-tab-dash').className = `btn btn-sm ${tab === 'dash' ? 'btn-dark' : 'btn-outline-dark'} rounded-pill px-3`;
+      
+      document.getElementById('t-content-editor').style.display = (tab === 'editor') ? 'block' : 'none';
+      document.getElementById('t-content-dash').style.display = (tab === 'dash') ? 'block' : 'none';
+
+      if(tab === 'dash') {
+        updateTeacherDashboard();
+      }
+    }
+
+    function updateTeacherDashboard() {
+      // 1. 통계 수치 계산
+      const totalStudents = demoDB.students.length;
+      document.getElementById('dash-total-students').innerText = totalStudents;
+
+      // 해당 영상에 출제된 퀴즈 리스트
+      const currentQuizzes = demoDB.quizzes.filter(q => q.lessonId === activeLessonId);
+      
+      // 제출된 전체 응답 수
+      const curResponses = demoDB.responses.filter(r => r[2] === activeLessonId);
+      
+      // 응답률 계산 (응답에 참여한 순수 학생 수 / 전체 학생)
+      const respondentIds = [...new Set(curResponses.map(r => r[0]))];
+      const rate = totalStudents > 0 ? Math.round((respondentIds.length / totalStudents) * 100) : 0;
+      document.getElementById('dash-response-rate').innerText = rate + "%";
+
+      // 객관식 정답률
+      const choiceQuizzes = currentQuizzes.filter(q => q.type === 'CHOICE');
+      let choiceCorrectCount = 0;
+      let choiceTotalCount = 0;
+
+      curResponses.forEach(r => {
+        const qz = choiceQuizzes.find(q => q.question === r[3]);
+        if(qz) {
+          choiceTotalCount++;
+          // r[4] = "1.보기명"
+          const studentAnsIdx = parseInt(r[4].split('.')[0]) - 1;
+          if(studentAnsIdx.toString() === qz.answer) {
+            choiceCorrectCount++;
+          }
+        }
+      });
+
+      const correctRate = choiceTotalCount > 0 ? Math.round((choiceCorrectCount / choiceTotalCount) * 100) : 0;
+      document.getElementById('dash-correct-rate').innerText = correctRate + "%";
+
+      // 2. 실시간 O/X 채점 현황 표 생성
+      const table = document.getElementById('dash-score-table');
+      table.innerHTML = "";
+
+      if(currentQuizzes.length === 0) {
+        table.innerHTML = `<tr><td class="p-3 text-muted">등록된 퀴즈가 없습니다.</td></tr>`;
+      } else {
+        let thead = `
+          <thead>
+            <tr>
+              <th>학생 정보</th>
+              ${currentQuizzes.map((q, i) => `<th>Q${i+1}</th>`).join('')}
+              <th>제출 수</th>
+            </tr>
+          </thead>
+        `;
+        
+        let tbody = "<tbody>";
+        demoDB.students.forEach(st => {
+          let submittedCount = 0;
+          let row = `
+            <tr>
+              <td class="text-start"><strong>${st.name}</strong> <small class="text-muted">(${st.id})</small></td>
+          `;
+          
+          currentQuizzes.forEach(q => {
+            const resp = curResponses.find(r => r[0] === st.id && r[3] === q.question);
+            let cell = "<td>·</td>";
+            
+            if(resp) {
+              submittedCount++;
+              if(q.type === 'OPEN') {
+                cell = `<td><i class="bi bi-check-circle-fill text-primary" title="답안: ${resp[4]}"></i></td>`;
+              } else if(q.type === 'CHOICE') {
+                const sAnsIdx = parseInt(resp[4].split('.')[0]) - 1;
+                if(sAnsIdx.toString() === q.answer) {
+                  cell = `<td><i class="bi bi-circle-fill text-success" title="정답: ${resp[4]}"></i></td>`;
+                } else {
+                  cell = `<td><i class="bi bi-x-lg text-danger" title="오답: ${resp[4]}"></i></td>`;
+                }
+              } else {
+                // 서술형
+                const isCorr = resp[4].toLowerCase().replace(/\s+/g, '') === q.answer.toLowerCase().replace(/\s+/g, '');
+                if(isCorr) {
+                  cell = `<td><i class="bi bi-circle-fill text-success" title="정답: ${resp[4]}"></i></td>`;
+                } else {
+                  cell = `<td><i class="bi bi-x-lg text-danger" title="오답: ${resp[4]}"></i></td>`;
+                }
+              }
+            }
+            row += cell;
+          });
+
+          row += `
+              <td class="fw-bold text-primary">${submittedCount} / ${currentQuizzes.length}</td>
+            </tr>
+          `;
+          tbody += row;
+        });
+        tbody += "</tbody>";
+        table.innerHTML = thead + tbody;
+      }
+
+      // 3. 실시간 피드 갱신
+      const feed = document.getElementById('dash-response-feed');
+      feed.innerHTML = '';
+      if(curResponses.length === 0) {
+        feed.innerHTML = `<p class="text-muted text-center py-3">제출된 응답이 없습니다.</p>`;
+      } else {
+        const sortedRes = [...curResponses].sort((a,b) => b[5] - a[5]);
+        sortedRes.forEach(r => {
+          const item = document.createElement('div');
+          item.className = 'list-group-item list-group-item-action p-3 mb-2 border rounded-4 bg-white shadow-sm';
+          item.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-bold text-primary">${r[1]} (${r[0]})</span>
+              <span class="small text-muted">${new Date(r[5]).toLocaleTimeString()}</span>
+            </div>
+            <div class="small text-dark mb-1"><strong>질문:</strong> ${r[3]}</div>
+            <div class="small bg-light p-2 rounded border"><strong>답안:</strong> ${r[4]}</div>
+          `;
+          feed.appendChild(item);
+        });
+      }
+    }
+
+    function resetDemoDB() {
+      if(confirm("모든 실시간 채점 기록과 퀴즈 설정이 데모 초기값으로 리셋됩니다. 진행하시겠습니까?")) {
+        demoDB.responses = [
+          ['10101', '김코딩', 'lesson-1', '대한민국의 수도는?', '1.서울', new Date(Date.now() - 3600000)],
+          ['10101', '김코딩', 'lesson-1', '미국의 수도는?', '워싱턴', new Date(Date.now() - 3500000)],
+          ['10102', '이학생', 'lesson-1', '대한민국의 수도는?', '2.도쿄', new Date(Date.now() - 2400000)],
+          ['10102', '이학생', 'lesson-1', '미국의 수도는?', '워싱턴', new Date(Date.now() - 2300000)],
+          ['10103', '박배움', 'lesson-1', '대한민국의 수도는?', '1.서울', new Date(Date.now() - 1200000)],
+          ['10103', '박배움', 'lesson-1', '미국의 수도는?', '뉴욕', new Date(Date.now() - 1100000)]
+        ];
+        demoDB.videos = [
+          { lessonId: 'lesson-1', videoId: 'M7lc1UVf-VE', title: '체험 수업: 대한민국과 미국의 수도' }
+        ];
+        demoDB.quizzes = [
+          { lessonId: 'lesson-1', time: 2, question: '대한민국의 수도는?', answer: '0', type: 'CHOICE', options: '서울||도쿄||베이징||런던', solved: false },
+          { lessonId: 'lesson-1', time: 7, question: '미국의 수도는?', answer: '워싱턴', type: 'NARRATIVE', options: '', solved: false }
+        ];
+        activeLessonId = 'lesson-1';
+        
+        initStudentApp();
+        initTeacherApp();
+        switchTeacherTab('editor');
+        switchStep(1);
+      }
+    }
+
+    // 로더 제어
+    function showLoader(target) {
+      document.getElementById(target + '-loader').style.display = 'flex';
+    }
+    function hideLoader(target) {
+      document.getElementById(target + '-loader').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
